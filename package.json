@@ -1,0 +1,39 @@
+{
+  "name": "tessie-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for the Tessie API — control and monitor your Tesla via Claude or any MCP-compatible AI assistant",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "tessie-mcp-server": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "tesla",
+    "tessie",
+    "claude",
+    "ai",
+    "llm"
+  ],
+  "author": "Andrew Krowczyk",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/akrowczyk/tessie-mcp-server.git"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "node-fetch": "^3.3.2",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}
