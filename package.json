@@ -1,6 +1,6 @@
 {
   "name": "tessie-mcp-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "MCP server for the Tessie API — control and monitor your Tesla via Claude or any MCP-compatible AI assistant",
   "type": "module",
   "main": "dist/index.js",

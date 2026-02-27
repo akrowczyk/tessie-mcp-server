@@ -17,7 +17,7 @@ An **MCP (Model Context Protocol) server** that bridges AI assistants to the [Te
 - 🌡️ **Climate Control** — start/stop, set temperature, seat heat/cool, defrost, Keep/Dog/Camp mode, Bioweapon Defense
 - 🔒 **Security** — lock/unlock, Sentry Mode, Valet Mode, Guest Mode, Speed Limit Mode
 - ⚡ **Charging** — start/stop, set charge limit %, set amps, charge port control
-- 🚗 **Drive Data** — history with distance, energy & speed; GPS path per trip; drive tags (business/personal)
+- 🚗 **Drive Data** — history with distance, energy & speed; GPS path per trip; drive tags
 - 📊 **Charge History** — sessions with cost tracking
 - 🛻 **Trunks & Covers** — frunk, rear trunk, Cybertruck tonneau
 - 🪟 **Windows & Sunroof** — vent or close
@@ -25,6 +25,7 @@ An **MCP (Model Context Protocol) server** that bridges AI assistants to the [Te
 - 🏠 **HomeLink** — trigger garage door opener
 - 🔑 **Remote Start** — keyless driving (2-minute window)
 - 📱 **Software Updates** — schedule or cancel
+- 😴 **Auto-Wake** — commands automatically wake a sleeping vehicle before executing
 - 💨 **Fun** — Boombox fart sounds 🐄
 
 ---
@@ -52,12 +53,21 @@ npm run build
 
 ## 🔧 Configuration
 
-Authentication is entirely via **environment variables** — no secrets ever touch configuration files or source code.
+### Environment Variables
+
+Authentication and preferences are configured entirely via environment variables — no secrets ever touch source code.
 
 | Variable | Required | Description |
 |---|---|---|
-| `TESSIE_API_TOKEN` | ✅ Yes | Your Tessie API token from [dash.tessie.com/settings/api](https://dash.tessie.com/settings/api) |
-| `TESSIE_DEFAULT_VIN` | Optional | Default VIN to use when not specified per-call |
+| `TESSIE_API_TOKEN` | ✅ Yes | Your Tessie API token |
+| `TESSIE_DEFAULT_VIN` | Optional | Default VIN when not specified per-call |
+| `TESSIE_DISTANCE_FORMAT` | Optional | `mi` or `km` — applies to all distance tools |
+| `TESSIE_TEMP_FORMAT` | Optional | `f` or `c` — applies to all temperature tools |
+| `TESSIE_PRESSURE_FORMAT` | Optional | `psi`, `bar`, or `kpa` — applies to tire pressure |
+
+Per-call parameters always override the env var defaults.
+
+---
 
 ### Claude Desktop
 
@@ -75,35 +85,37 @@ Add this block to your Claude Desktop config file:
       "args": ["/absolute/path/to/tessie-mcp-server/dist/index.js"],
       "env": {
         "TESSIE_API_TOKEN": "your-tessie-api-token",
-        "TESSIE_DEFAULT_VIN": "your-17-digit-vin"
+        "TESSIE_DEFAULT_VIN": "your-17-digit-vin",
+        "TESSIE_DISTANCE_FORMAT": "mi",
+        "TESSIE_TEMP_FORMAT": "f"
       }
     }
   }
 }
 ```
 
-> **Note:** Replace `/absolute/path/to/tessie-mcp-server` with the actual path where you cloned this repo, e.g. `/Users/yourname/tessie-mcp-server`.
+> **Note:** Replace `/absolute/path/to/tessie-mcp-server` with the actual path where you cloned this repo.
 
-After saving, **restart Claude Desktop** and the Tessie tools will be available.
+After saving, **restart Claude Desktop**.
 
 ---
 
 ### Claude Code (CLI)
 
 ```bash
-# Add the server
 claude mcp add tessie -- node /absolute/path/to/tessie-mcp-server/dist/index.js
 
-# Set your token (add to your shell profile for persistence)
 export TESSIE_API_TOKEN="your-tessie-api-token"
-export TESSIE_DEFAULT_VIN="your-17-digit-vin"   # optional
+export TESSIE_DEFAULT_VIN="your-17-digit-vin"
+export TESSIE_DISTANCE_FORMAT="mi"
+export TESSIE_TEMP_FORMAT="f"
 ```
 
 ---
 
 ### Cursor
 
-Add to your Cursor MCP settings (`.cursor/mcp.json` in your project or `~/.cursor/mcp.json` globally):
+Add to `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global):
 
 ```json
 {
@@ -124,7 +136,7 @@ Add to your Cursor MCP settings (`.cursor/mcp.json` in your project or `~/.curso
 
 ### Windsurf
 
-Open **Settings → MCP Servers → Add** and configure:
+Open **Settings → MCP Servers → Add**:
 
 ```json
 {
@@ -143,7 +155,7 @@ Open **Settings → MCP Servers → Add** and configure:
 
 ### Continue.dev
 
-In your `~/.continue/config.json`:
+In `~/.continue/config.json`:
 
 ```json
 {
@@ -167,6 +179,30 @@ In your `~/.continue/config.json`:
 
 ---
 
+## 😴 Auto-Wake
+
+All vehicle commands automatically wake a sleeping vehicle before executing — no need to call `wake_vehicle` manually first.
+
+- If the vehicle is **already awake**, commands execute instantly with zero added latency
+- If the vehicle is **asleep**, the server sends a wake command and polls every 3 seconds until the vehicle is awake (up to 90 seconds), then sends your command
+- Read-only data tools (`get_battery`, `get_location`, etc.) use cached data by default and do **not** wake the vehicle
+
+---
+
+## 📡 MCP Resources
+
+In addition to tools, this server exposes vehicle data as **MCP Resources** — structured data that AI clients can read as contextual documents:
+
+| URI | Description |
+|---|---|
+| `tessie://vehicles` | Fleet overview — all vehicles on the account |
+| `tessie://{vin}/state` | Full live vehicle state (charge, climate, drive, config) |
+| `tessie://{vin}/status` | Current awake/asleep status |
+
+Resources are accessible in Claude Desktop and other MCP clients that support the resources protocol.
+
+---
+
 ## 🛠️ Available Tools
 
 ### Vehicle Data
@@ -175,6 +211,7 @@ In your `~/.continue/config.json`:
 | `get_vehicles` | List all vehicles on the account |
 | `get_vehicle_state` | Full state — drive, charge, climate, config |
 | `get_vehicle_status` | Check if vehicle is awake/asleep |
+| `get_full_status` | **Combined** battery + location + state in one call |
 | `get_battery` | Battery level, range, voltage, temperature |
 | `get_battery_health` | Battery degradation over time |
 | `get_location` | GPS coordinates and street address |
@@ -193,10 +230,10 @@ In your `~/.continue/config.json`:
 | `set_charge_cost` | Set cost for a charge session |
 | `get_idles` | Idle periods (parked, not charging) |
 
-### Commands
+### Commands *(all auto-wake)*
 | Tool | Description |
 |------|-------------|
-| `wake_vehicle` | Wake from sleep |
+| `wake_vehicle` | Explicitly wake from sleep |
 | `lock` / `unlock` | Door locks |
 | `open_front_trunk` / `open_rear_trunk` | Trunk controls |
 | `vent_windows` / `close_windows` | Window controls |
@@ -207,7 +244,7 @@ In your `~/.continue/config.json`:
 | `remote_start` | Keyless driving (2-min window) |
 | `boombox` | External speaker fart sound 🐄 |
 
-### Climate
+### Climate *(all auto-wake)*
 | Tool | Description |
 |------|-------------|
 | `start_climate` / `stop_climate` | Climate system |
@@ -219,7 +256,7 @@ In your `~/.continue/config.json`:
 | `set_climate_keeper_mode` | Keep / Dog / Camp mode |
 | `set_bioweapon_mode` | Bioweapon Defense Mode |
 
-### Charging
+### Charging *(all auto-wake)*
 | Tool | Description |
 |------|-------------|
 | `start_charging` / `stop_charging` | Start/stop charging |
@@ -227,7 +264,7 @@ In your `~/.continue/config.json`:
 | `set_charging_amps` | Set charging amperage |
 | `open_charge_port` / `close_charge_port` | Charge port door |
 
-### Modes
+### Modes *(all auto-wake)*
 | Tool | Description |
 |------|-------------|
 | `enable_sentry_mode` / `disable_sentry_mode` | Sentry Mode |
@@ -235,7 +272,7 @@ In your `~/.continue/config.json`:
 | `enable_guest_mode` / `disable_guest_mode` | Guest Mode |
 | `enable_speed_limit` / `disable_speed_limit` | Speed Limit Mode |
 
-### Software
+### Software *(all auto-wake)*
 | Tool | Description |
 |------|-------------|
 | `schedule_software_update` | Schedule a software update |
@@ -247,14 +284,14 @@ In your `~/.continue/config.json`:
 
 Once configured, try asking your AI assistant:
 
-- *"What's my Tesla's battery level and estimated range?"*
+- *"How is my Tesla doing right now?"* → uses `get_full_status`
+- *"What's my battery level and estimated range?"*
 - *"Where is my car parked right now?"*
-- *"Start the climate and set it to 72°F"*
-- *"Lock the car and turn on Sentry Mode"*
+- *"Start the climate and set it to 72°F"* (auto-wakes if needed)
+- *"Lock the car and turn on Sentry Mode"* (auto-wakes if needed)
 - *"Show me my drives from this week"*
 - *"Open the frunk"*
 - *"What's the tire pressure on all four tires?"*
-- *"How much did it cost to charge last session?"*
 - *"Set my charge limit to 80%"*
 - *"Tag all my drives this month as business"*
 
@@ -262,32 +299,23 @@ Once configured, try asking your AI assistant:
 
 ## 🔒 Security Notes
 
-- Your **Tessie API token** is passed as an environment variable and is **never** stored in code or config files.
-- The `.gitignore` in this repo explicitly excludes `.env` files.
-- If you believe your token has been exposed, rotate it immediately at [dash.tessie.com/settings/api](https://dash.tessie.com/settings/api).
-- All vehicle commands are authenticated with your personal token — only you can send commands to your vehicle.
+- Your **Tessie API token** is passed as an environment variable — **never** stored in code or config files
+- The `.gitignore` in this repo explicitly excludes `.env` files
+- If your token has been exposed, rotate it immediately at [dash.tessie.com/settings/api](https://dash.tessie.com/settings/api)
+- All vehicle commands are authenticated with your personal token — only you can control your vehicle
 
 ---
 
 ## 🛠️ Development
 
 ```bash
-# Install dependencies
-npm install
-
-# Build TypeScript
-npm run build
-
-# Watch mode (auto-rebuild on changes)
-npm run dev
-
-# Run the server directly (requires TESSIE_API_TOKEN env var)
-npm start
+npm install        # Install dependencies
+npm run build      # Compile TypeScript
+npm run dev        # Watch mode (auto-rebuild on changes)
+npm start          # Run the compiled server
 ```
 
-**Requirements:**
-- Node.js 18+ (for native `fetch`)
-- A Tessie account with API access
+**Requirements:** Node.js 18+
 
 ---
 
