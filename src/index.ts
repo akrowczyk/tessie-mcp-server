@@ -15,12 +15,8 @@
  *   TESSIE_PRESSURE_FORMAT  = "psi"| "bar" | "kpa" (default: API default)
  */
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  ReadResourceRequestSchema,
-  ListResourcesRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
 import fetch, { RequestInit } from "node-fetch";
 import { z } from "zod";
 
@@ -209,88 +205,66 @@ const server = new McpServer({
 
 // ===================== RESOURCES =====================
 
-server.server.setRequestHandler(ListResourcesRequestSchema, async () => {
-  const defaultVin = getDefaultVin();
-  const resources = [
-    {
-      uri: "tessie://vehicles",
-      name: "All Vehicles",
-      description: "Fleet overview — all vehicles on the Tessie account",
-      mimeType: "application/json",
-    },
-  ];
-
-  if (defaultVin) {
-    resources.push(
-      {
-        uri: `tessie://${defaultVin}/state`,
-        name: "Vehicle State",
-        description: `Full live state for ${defaultVin} — charge, climate, drive, config`,
-        mimeType: "application/json",
-      },
-      {
-        uri: `tessie://${defaultVin}/status`,
-        name: "Vehicle Status",
-        description: `Awake/asleep status for ${defaultVin}`,
-        mimeType: "application/json",
-      }
-    );
-  }
-
-  return { resources };
-});
-
-server.server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-  const uri = request.params.uri;
-
-  // tessie://vehicles
-  if (uri === "tessie://vehicles") {
+// Static resource: fleet overview
+server.resource(
+  "vehicles",
+  "tessie://vehicles",
+  { description: "Fleet overview — all vehicles on the Tessie account", mimeType: "application/json" },
+  async (uri) => {
     const data = await get("/vehicles");
     return {
       contents: [
         {
-          uri,
+          uri: uri.href,
           mimeType: "application/json",
           text: JSON.stringify(data, null, 2),
         },
       ],
     };
   }
+);
 
-  // tessie://{vin}/state
-  const stateMatch = uri.match(/^tessie:\/\/(.+)\/state$/);
-  if (stateMatch) {
-    const vin = stateMatch[1];
-    const data = await get(`/${vin}/state`, { use_cache: true });
+// Dynamic resource: vehicle state (using URI template)
+server.resource(
+  "vehicle-state",
+  new ResourceTemplate("tessie://{vin}/state", { list: undefined }),
+  { description: "Full live vehicle state — charge, climate, drive, config", mimeType: "application/json" },
+  async (uri, { vin }) => {
+    const resolvedVin = (vin as string) || getDefaultVin();
+    if (!resolvedVin) throw new Error("VIN is required");
+    const data = await get(`/${resolvedVin}/state`, { use_cache: true });
     return {
       contents: [
         {
-          uri,
+          uri: uri.href,
           mimeType: "application/json",
           text: JSON.stringify(data, null, 2),
         },
       ],
     };
   }
+);
 
-  // tessie://{vin}/status
-  const statusMatch = uri.match(/^tessie:\/\/(.+)\/status$/);
-  if (statusMatch) {
-    const vin = statusMatch[1];
-    const data = await get(`/${vin}/status`);
+// Dynamic resource: vehicle status (awake/asleep)
+server.resource(
+  "vehicle-status",
+  new ResourceTemplate("tessie://{vin}/status", { list: undefined }),
+  { description: "Current awake/asleep status", mimeType: "application/json" },
+  async (uri, { vin }) => {
+    const resolvedVin = (vin as string) || getDefaultVin();
+    if (!resolvedVin) throw new Error("VIN is required");
+    const data = await get(`/${resolvedVin}/status`);
     return {
       contents: [
         {
-          uri,
+          uri: uri.href,
           mimeType: "application/json",
           text: JSON.stringify(data, null, 2),
         },
       ],
     };
   }
-
-  throw new Error(`Unknown resource URI: ${uri}`);
-});
+);
 
 // ===================== VEHICLE STATE & DATA =====================
 
