@@ -87,7 +87,8 @@ Add this block to your Claude Desktop config file:
         "TESSIE_API_TOKEN": "your-tessie-api-token",
         "TESSIE_DEFAULT_VIN": "your-17-digit-vin",
         "TESSIE_DISTANCE_FORMAT": "mi",
-        "TESSIE_TEMP_FORMAT": "f"
+        "TESSIE_TEMP_FORMAT": "f",
+        "TESSIE_PRESSURE_FORMAT": "psi"
       }
     }
   }
@@ -109,6 +110,7 @@ export TESSIE_API_TOKEN="your-tessie-api-token"
 export TESSIE_DEFAULT_VIN="your-17-digit-vin"
 export TESSIE_DISTANCE_FORMAT="mi"
 export TESSIE_TEMP_FORMAT="f"
+export TESSIE_PRESSURE_FORMAT="psi"
 ```
 
 ---
@@ -125,7 +127,10 @@ Add to `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global):
       "args": ["/absolute/path/to/tessie-mcp-server/dist/index.js"],
       "env": {
         "TESSIE_API_TOKEN": "your-tessie-api-token",
-        "TESSIE_DEFAULT_VIN": "your-17-digit-vin"
+        "TESSIE_DEFAULT_VIN": "your-17-digit-vin",
+        "TESSIE_DISTANCE_FORMAT": "mi",
+        "TESSIE_TEMP_FORMAT": "f",
+        "TESSIE_PRESSURE_FORMAT": "psi"
       }
     }
   }
@@ -145,7 +150,10 @@ Open **Settings → MCP Servers → Add**:
     "args": ["/absolute/path/to/tessie-mcp-server/dist/index.js"],
     "env": {
       "TESSIE_API_TOKEN": "your-tessie-api-token",
-      "TESSIE_DEFAULT_VIN": "your-17-digit-vin"
+      "TESSIE_DEFAULT_VIN": "your-17-digit-vin",
+      "TESSIE_DISTANCE_FORMAT": "mi",
+      "TESSIE_TEMP_FORMAT": "f",
+      "TESSIE_PRESSURE_FORMAT": "psi"
     }
   }
 }
@@ -168,7 +176,10 @@ In `~/.continue/config.json`:
           "args": ["/absolute/path/to/tessie-mcp-server/dist/index.js"],
           "env": {
             "TESSIE_API_TOKEN": "your-tessie-api-token",
-            "TESSIE_DEFAULT_VIN": "your-17-digit-vin"
+            "TESSIE_DEFAULT_VIN": "your-17-digit-vin",
+            "TESSIE_DISTANCE_FORMAT": "mi",
+            "TESSIE_TEMP_FORMAT": "f",
+            "TESSIE_PRESSURE_FORMAT": "psi"
           }
         }
       }
